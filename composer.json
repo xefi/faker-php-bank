@@ -1,0 +1,47 @@
+{
+  "name": "xefi/faker-php-bank",
+  "type": "library",
+  "description": "Faker extension to generate banking and credit card data",
+  "keywords": [
+    "faker",
+    "bank",
+    "iban",
+    "swift",
+    "credit-card",
+    "cvv"
+  ],
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Lucas GOSGNACH"
+    }
+  ],
+  "require": {
+    "php": "^8.3",
+    "psr/container": "^2.0",
+    "xefi/faker-php": "^1"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^11"
+  },
+  "autoload": {
+    "psr-4": {
+      "Xefi\\Faker\\Bank\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Xefi\\Faker\\Bank\\Tests\\": "tests/"
+    }
+  },
+  "config": {
+    "sort-packages": true
+  },
+  "extra": {
+    "faker": {
+      "providers": [
+        "Xefi\\Faker\\Bank\\FakerBankServiceProvider"
+      ]
+    }
+  }
+}
