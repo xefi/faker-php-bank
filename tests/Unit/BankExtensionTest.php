@@ -152,33 +152,57 @@ final class BankExtensionTest extends TestCase
         $this->faker->creditCardNumber('invalid_type');
     }
 
+    public function testCreditCardNumberAcceptsFakerphpTypeNames(): void
+    {
+        $expected = [
+            'Visa' => '/^4/',
+            'Visa Retired' => '/^4/',
+            'MasterCard' => '/^(5[1-5]|2221|2720)/',
+            'American Express' => '/^3[47]/',
+            'Discover Card' => '/^6/',
+        ];
+
+        foreach ($expected as $type => $prefix) {
+            $cardNumber = $this->faker->creditCardNumber($type);
+
+            $this->assertMatchesRegularExpression($prefix, $cardNumber, $type);
+            $this->assertTrue($this->isValidLuhn($cardNumber), $type);
+        }
+    }
+
     public function testCreditCardExpirationDate(): void
     {
-        $expirationDate = $this->faker->creditCardExpirationDate();
-        
-        $this->assertMatchesRegularExpression('/^[0-1][0-9]\/[0-9]{2}$/', $expirationDate);
-        
-        list($month, $year) = explode('/', $expirationDate);
-        $currentYear = date('Y') % 100;
-        $currentMonth = date('n');
-        
-        if ($year > $currentYear || ($year == $currentYear && $month >= $currentMonth)) {
-            $this->assertTrue(true);
-        } else {
-            $this->assertTrue($year <= $currentYear + 5);
+        $now = (int) date('Y') * 12 + (int) date('n');
+
+        for ($i = 0; $i < 200; $i++) {
+            $expirationDate = $this->faker->creditCardExpirationDate();
+
+            $this->assertMatchesRegularExpression('/^(0[1-9]|1[0-2])\/[0-9]{2}$/', $expirationDate);
+            $months = $this->monthsSinceYearZero($expirationDate);
+            $this->assertGreaterThanOrEqual($now, $months, $expirationDate);
+            $this->assertLessThanOrEqual($now + 60, $months, $expirationDate);
         }
     }
 
     public function testCreditCardExpirationDateExpired(): void
     {
-        $expirationDate = $this->faker->creditCardExpirationDate(false);
-        
-        $this->assertMatchesRegularExpression('/^[0-1][0-9]\/[0-9]{2}$/', $expirationDate);
-        
-        list($month, $year) = explode('/', $expirationDate);
-        $currentYear = date('Y') % 100;
-        
-        $this->assertTrue($year < $currentYear);
+        $now = (int) date('Y') * 12 + (int) date('n');
+
+        for ($i = 0; $i < 200; $i++) {
+            $expirationDate = $this->faker->creditCardExpirationDate(false);
+
+            $this->assertMatchesRegularExpression('/^(0[1-9]|1[0-2])\/[0-9]{2}$/', $expirationDate);
+            $months = $this->monthsSinceYearZero($expirationDate);
+            $this->assertLessThan($now, $months, $expirationDate);
+            $this->assertGreaterThanOrEqual($now - 120, $months, $expirationDate);
+        }
+    }
+
+    private function monthsSinceYearZero(string $expirationDate): int
+    {
+        [$month, $year] = explode('/', $expirationDate);
+
+        return (2000 + (int) $year) * 12 + (int) $month;
     }
 
     public function testCvv(): void

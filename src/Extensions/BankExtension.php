@@ -236,7 +236,7 @@ class BankExtension extends Extension
             $type = $this->pickArrayRandomKey($this->creditCardTypes);
         }
 
-        $type = strtolower($type);
+        $type = $this->normalizeCreditCardType($type);
 
         if (!isset($this->creditCardTypes[$type])) {
             throw new \InvalidArgumentException("Unsupported credit card type: {$type}");
@@ -253,17 +253,19 @@ class BankExtension extends Extension
         return $number . $checkDigit;
     }
 
+    /**
+     * Returns a MM/YY date: from the current month up to 5 years ahead when valid,
+     * from 10 years ago up to last month otherwise.
+     */
     public function creditCardExpirationDate(bool $valid = true): string
     {
-        if ($valid) {
-            $month = $this->randomizer->getInt(1, 12);
-            $year = $this->randomizer->getInt(date('Y'), date('Y') + 5);
-        } else {
-            $month = $this->randomizer->getInt(1, 12);
-            $year = $this->randomizer->getInt(date('Y') - 10, date('Y') - 1);
-        }
+        $months = $valid
+            ? $this->randomizer->getInt(0, 60)
+            : -$this->randomizer->getInt(1, 120);
 
-        return sprintf('%02d/%02d', $month, $year % 100);
+        return (new \DateTimeImmutable('first day of this month'))
+            ->modify(sprintf('%+d months', $months))
+            ->format('m/y');
     }
 
     public function cvv(int $length = 3): string
@@ -273,6 +275,23 @@ class BankExtension extends Extension
         }
 
         return $this->formatString(str_repeat('{d}', $length));
+    }
+
+    /**
+     * Accepts the keys of $creditCardTypes and the fakerphp/faker names
+     * ("Visa", "Visa Retired", "MasterCard", "American Express", "Discover Card").
+     */
+    private function normalizeCreditCardType(string $type): string
+    {
+        $type = str_replace([' ', '-'], '_', strtolower(trim($type)));
+
+        return [
+            'visa_retired' => 'visa',
+            'master_card' => 'mastercard',
+            'amex' => 'american_express',
+            'discover_card' => 'discover',
+            'diners' => 'diners_club',
+        ][$type] ?? $type;
     }
 
     private function calculateLuhnCheckDigit(string $number): int
