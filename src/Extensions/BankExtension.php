@@ -2,12 +2,13 @@
 
 namespace Xefi\Faker\Bank\Extensions;
 
+use Xefi\Faker\Calculators\Iban;
 use Xefi\Faker\Extensions\Extension;
 
 class BankExtension extends Extension
 {
     protected array $ibanFormats = [
-        'AD' => ['bankCodeLength' => 4, 'accountLength' => 12, 'totalLength' => 24],
+        'AD' => ['bankCodeLength' => 8, 'accountLength' => 12, 'totalLength' => 24],
         'AE' => ['bankCodeLength' => 3, 'accountLength' => 16, 'totalLength' => 23],
         'AL' => ['bankCodeLength' => 8, 'accountLength' => 16, 'totalLength' => 28],
         'AT' => ['bankCodeLength' => 5, 'accountLength' => 11, 'totalLength' => 20],
@@ -58,7 +59,7 @@ class BankExtension extends Extension
         'MK' => ['bankCodeLength' => 3, 'accountLength' => 12, 'totalLength' => 19],
         'MR' => ['bankCodeLength' => 10, 'accountLength' => 13, 'totalLength' => 27],
         'MT' => ['bankCodeLength' => 4, 'accountLength' => 23, 'totalLength' => 31],
-        'MU' => ['bankCodeLength' => 6, 'accountLength' => 18, 'totalLength' => 30],
+        'MU' => ['bankCodeLength' => 8, 'accountLength' => 18, 'totalLength' => 30],
         'NL' => ['bankCodeLength' => 4, 'accountLength' => 10, 'totalLength' => 18],
         'NO' => ['bankCodeLength' => 4, 'accountLength' => 7, 'totalLength' => 15],
         'PK' => ['bankCodeLength' => 4, 'accountLength' => 16, 'totalLength' => 24],
@@ -158,28 +159,31 @@ class BankExtension extends Extension
         ],
     ];
 
-    public function iban(?string $countryCode = null): string
+    /**
+     * Same signature as the core FinancialExtension::iban(), so installing this
+     * extension does not break existing calls.
+     *
+     * - With a format, it behaves like the core: the BBAN follows the format
+     *   ({d} => digit, {l} => letter, {a} => any).
+     * - Without a format, it uses the real BBAN length of the country when known,
+     *   and falls back to 24 digits like the core otherwise.
+     *
+     * @param ?string $countryCode ISO 3166-1 alpha-2 country code
+     * @param ?string $format      [{d} => digit, {l} => letter, {a} => any]
+     */
+    public function iban(?string $countryCode = null, ?string $format = null): string
     {
-        if ($countryCode === null) {
-            $countryCode = $this->pickArrayRandomKey($this->ibanFormats);
+        $countryCode = strtoupper($countryCode ?? $this->pickArrayRandomKey($this->ibanFormats));
+
+        if ($format === null) {
+            $format = isset($this->ibanFormats[$countryCode])
+                ? str_repeat('{d}', $this->ibanFormats[$countryCode]['bankCodeLength'] + $this->ibanFormats[$countryCode]['accountLength'])
+                : str_repeat('{d}', 24);
         }
 
-        $countryCode = strtoupper($countryCode);
+        $bban = $this->formatString($format);
 
-        if (!isset($this->ibanFormats[$countryCode])) {
-            throw new \InvalidArgumentException("Unsupported country code: {$countryCode}");
-        }
-
-        $format = $this->ibanFormats[$countryCode];
-
-        $bankCode = $this->formatString(str_repeat('{d}', $format['bankCodeLength']));
-        $accountNumber = $this->formatString(str_repeat('{d}', $format['accountLength']));
-
-        $tempIban = $countryCode . '00' . $bankCode . $accountNumber;
-        $checkDigits = 98 - $this->ibanMod97($tempIban);
-        $checkDigits = str_pad((string)$checkDigits, 2, '0', STR_PAD_LEFT);
-
-        return $countryCode . $checkDigits . $bankCode . $accountNumber;
+        return $countryCode . Iban::checksum($countryCode . '00' . $bban) . $bban;
     }
 
     public function swiftCode(?string $countryCode = null): string
@@ -269,21 +273,6 @@ class BankExtension extends Extension
         }
 
         return $this->formatString(str_repeat('{d}', $length));
-    }
-
-    private function ibanMod97(string $iban): int
-    {
-        $checkString = substr($iban, 4) . substr($iban, 0, 4);
-        $checkString = preg_replace_callback('/[A-Z]/', function ($matches) {
-            return ord($matches[0]) - ord('A') + 10;
-        }, $checkString);
-
-        $remainder = 0;
-        for ($i = 0; $i < strlen($checkString); $i++) {
-            $remainder = ($remainder * 10 + intval($checkString[$i])) % 97;
-        }
-
-        return $remainder;
     }
 
     private function calculateLuhnCheckDigit(string $number): int
