@@ -45,10 +45,37 @@ final class BankExtensionTest extends TestCase
         $this->assertMatchesRegularExpression('/^FR[0-9]{25}$/', $iban);
     }
 
-    public function testIbanWithInvalidCountry(): void
+    public function testIbanWithUnknownCountryFallsBackLikeCore(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
-        $this->faker->iban('XX');
+        $iban = $this->faker->iban('US');
+
+        $this->assertMatchesRegularExpression('/^US[0-9]{26}$/', $iban);
+        $this->assertTrue(\Xefi\Faker\Calculators\Iban::isValid($iban));
+    }
+
+    public function testIbanWithFormat(): void
+    {
+        $iban = $this->faker->iban(countryCode: 'DE', format: '{l}{l}{d}{d}{d}{d}');
+
+        $this->assertMatchesRegularExpression('/^DE[0-9]{2}[A-Z]{2}[0-9]{4}$/', $iban);
+        $this->assertTrue(\Xefi\Faker\Calculators\Iban::isValid($iban));
+    }
+
+    public function testIbanAcceptsCoreNamedArguments(): void
+    {
+        $iban = $this->faker->iban(countryCode: null, format: null);
+
+        $this->assertMatchesRegularExpression('/^[A-Z]{2}[0-9]{2}[0-9]+$/', $iban);
+    }
+
+    public function testIbanChecksumIsValid(): void
+    {
+        foreach (array_keys($this->ibanFormats) as $countryCode) {
+            $iban = $this->faker->iban($countryCode);
+
+            $this->assertEquals($this->ibanFormats[$countryCode]['totalLength'], strlen($iban), $countryCode);
+            $this->assertTrue(\Xefi\Faker\Calculators\Iban::isValid($iban), $iban);
+        }
     }
 
     public function testSwiftCode(): void
