@@ -158,7 +158,7 @@ class BankExtension extends Extension
         ],
     ];
 
-    public function iban(string $countryCode = null): string
+    public function iban(?string $countryCode = null): string
     {
         if ($countryCode === null) {
             $countryCode = $this->pickArrayRandomKey($this->ibanFormats);
@@ -182,7 +182,7 @@ class BankExtension extends Extension
         return $countryCode . $checkDigits . $bankCode . $accountNumber;
     }
 
-    public function swiftCode(string $countryCode = null): string
+    public function swiftCode(?string $countryCode = null): string
     {
         if ($countryCode === null) {
             $countryCode = $this->pickArrayRandomKey($this->swiftCodes);
@@ -226,7 +226,7 @@ class BankExtension extends Extension
         return $this->pickArrayRandomElement($genericNames);
     }
 
-    public function creditCardNumber(string $type = null): string
+    public function creditCardNumber(?string $type = null): string
     {
         if ($type === null) {
             $type = $this->pickArrayRandomKey($this->creditCardTypes);
